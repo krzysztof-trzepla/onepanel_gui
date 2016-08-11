@@ -1,0 +1,6 @@
+.idea
+onepanel_gui.iml
+
+deps
+ebin
+.dialyzer.plt
