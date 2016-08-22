@@ -38,7 +38,8 @@ handle(Req, State) ->
         {ok, Status, RespHeaders, RespBody} = http_client:request(
             method(Method),
             <<Url/binary, Endpoint/binary, "?", QueryStrings/binary>>,
-            Headers, Body, [insecure]
+            Headers, Body,
+            [insecure, {connect_timeout, infinity}, {recv_timeout, infinity}]
         ),
         {ok, Req7} = cowboy_req:reply(Status, RespHeaders, RespBody, Req6),
         {ok, Req7, State}

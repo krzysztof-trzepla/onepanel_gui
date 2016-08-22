@@ -31,9 +31,9 @@
 %% ====================================================================
 
 get_release() ->
-    case application:get_env(onepanel, release) of
+    case application:get_env(onepanel, release_type) of
         {ok, Release} -> Release;
-        undefined -> case application:get_env(?APP_NAME, release) of
+        undefined -> case application:get_env(?APP_NAME, release_type) of
             {ok, Release} -> Release;
             undefined -> undefined
         end
@@ -78,7 +78,7 @@ change_password(_, _, _, _) ->
 
 initialize_cluster() ->
     Body = [{cookie, erlang:get_cookie()}],
-    case onepanel_gui_rest:request(<<"/hosts">>, put, Body) of
+    case onepanel_gui_rest:request(<<"/hosts">>, post, Body) of
         {ok, 204, _, _} -> ok;
         Other -> onepanel_gui_rest:translate_error(Other)
     end.
@@ -89,7 +89,7 @@ join_cluster(Hosts) ->
     Body = [{cookie, erlang:get_cookie()}],
     lists:foreach(fun(Host) ->
         onepanel_gui_rest:noauth_request(<<"https://", Host/binary, ":9443">>,
-            <<"/hosts?clusterHost=", ClusterHost/binary>>, put, [], Body, [insecure])
+            <<"/hosts?clusterHost=", ClusterHost/binary>>, post, [], Body, [insecure])
     end, Hosts).
 
 
@@ -140,7 +140,7 @@ configure(MainCmHost, CmHosts, WrHosts, DbHosts) ->
         ]}
     ],
     join_cluster(Hosts -- ClusterHosts),
-    case onepanel_gui_rest:request(<<Prefix/binary, "/configuration">>, put, Body) of
+    case onepanel_gui_rest:request(<<Prefix/binary, "/configuration">>, post, Body) of
         {ok, 201, Headers, _} ->
             {ok, proplists:get_value(<<"location">>, Headers)};
         Other -> onepanel_gui_rest:translate_error(Other)
@@ -187,8 +187,8 @@ get_provider_name() ->
 
 
 register_provider(Body) ->
-    case onepanel_gui_rest:request(<<"/provider">>, put, Body) of
-        {ok, 201, _, _} -> ok;
+    case onepanel_gui_rest:request(<<"/provider">>, post, Body) of
+        {ok, 204, _, _} -> ok;
         Other -> onepanel_gui_rest:translate_error(Other)
     end.
 
@@ -218,7 +218,7 @@ get_storages() ->
 
 
 add_storage(Body) ->
-    case onepanel_gui_rest:request(<<"/provider/storages">>, put, Body) of
+    case onepanel_gui_rest:request(<<"/provider/storages">>, post, Body) of
         {ok, 204, _, _} -> ok;
         Other -> onepanel_gui_rest:translate_error(Other)
     end.
@@ -239,7 +239,7 @@ get_space_details(SpaceId) ->
 
 
 support_space(Body) ->
-    case onepanel_gui_rest:request(<<"/provider/spaces">>, put, Body) of
+    case onepanel_gui_rest:request(<<"/provider/spaces">>, post, Body) of
         {ok, 200, _, Body2} -> {ok, proplists:get_value(<<"id">>, Body2)};
         Other -> onepanel_gui_rest:translate_error(Other)
     end.

@@ -37,6 +37,6 @@
         {session_cookie_ttl, 7200},
         {onepanel_server_url, <<"https://127.0.0.1:9444">>},
         {onepanel_server_rest_prefix, <<"/api/v3/onepanel">>},
-        {release, oneprovider}
+        {release_type, oneprovider}
     ]}
 ]}.
