@@ -118,12 +118,12 @@ get_hosts(Type) ->
 
 
 configure(MainCmHost, CmHosts, WrHosts, DbHosts) ->
-    {ok, ClusterHosts} = get_hosts(cluster),
     Hosts = lists:usort(CmHosts ++ WrHosts ++ DbHosts),
     Prefix = onepanel_gui_rest:get_prefix(),
     Body = [
         {cluster, [
             {domainName, get_domain(hd(Hosts))},
+            {autoDeploy, true},
             {nodes, lists:map(fun(Host) ->
                 {Host, [{hostname, get_hostname(Host)}]}
             end, Hosts)},
@@ -139,7 +139,6 @@ configure(MainCmHost, CmHosts, WrHosts, DbHosts) ->
             ]}
         ]}
     ],
-    join_cluster(Hosts -- ClusterHosts),
     case onepanel_gui_rest:request(<<Prefix/binary, "/configuration">>, post, Body) of
         {ok, 201, Headers, _} ->
             {ok, proplists:get_value(<<"location">>, Headers)};

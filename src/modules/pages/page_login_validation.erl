@@ -34,13 +34,6 @@ body() ->
             Params = gui_ctx:form_params(),
             Username = proplists:get_value(<<"username">>, Params),
             Password = proplists:get_value(<<"password">>, Params),
-            case onepanel_gui_logic:get_hosts(cluster) of
-                {ok, []} ->
-                    onepanel_gui_logic:initialize_cluster(),
-                    onepanel_gui_logic:create_user(<<"admin">>, <<"Password1">>, admin);
-                _ ->
-                    ok
-            end,
             case onepanel_gui_logic:login(Username, Password) of
                 ok ->
                     ?info("Successful login of user: ~p", [Username]),
