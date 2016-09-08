@@ -54,8 +54,9 @@ start(_StartType, _StartArgs) ->
     {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
     {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
     GuiStaticRoot = filename:join(code:priv_dir(?APP_NAME), "gui_static"),
-    CertFile = filename:join(code:priv_dir(?APP_NAME), "certs/server.crt"),
-    KeyFile = filename:join(code:priv_dir(?APP_NAME), "certs/server.key"),
+    {ok, KeyPath} = application:get_env(?APP_NAME, gui_key_path),
+    {ok, CertPath} = application:get_env(?APP_NAME, gui_cert_path),
+    {ok, CaCertPath} = application:get_env(?APP_NAME, gui_cacert_path),
     {ok, RestPrefix} = application:get_env(?APP_NAME, onepanel_server_rest_prefix),
 
     ets:new(store, [named_table, public, set, {read_concurrency, true}]),
@@ -70,13 +71,16 @@ start(_StartType, _StartArgs) ->
             ]}
         ]),
 
-    case cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
+    case ranch:start_listener(?HTTPS_LISTENER, HttpsAcceptors, ranch_etls,
         [
             {port, GuiPort},
-            {certfile, CertFile},
-            {keyfile, KeyFile}
-        ],
-        [
+            {keyfile, KeyPath},
+            {certfile, CertPath},
+            {cacertfile, CaCertPath},
+            {verify, verify_peer},
+            {ciphers, ssl:cipher_suites() -- weak_ciphers()},
+            {versions, ['tlsv1.2', 'tlsv1.1']}
+        ], cowboy_protocol, [
             {env, [{dispatch, Dispatch}]},
             {max_keepalive, MaxKeepalive},
             {timeout, Timeout},
@@ -117,6 +121,15 @@ gui_adjust_headers(Req) ->
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
+
+%% ====================================================================
+%% @doc Returns list of weak ciphers.
+%% @end
+-spec weak_ciphers() -> list().
+%% ====================================================================
+weak_ciphers() ->
+    [{dhe_rsa, des_cbc, sha}, {rsa, des_cbc, sha}].
+
 
 %% static_dispatches/2
 %% ====================================================================
