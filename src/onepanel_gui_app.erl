@@ -59,6 +59,9 @@ start(_StartType, _StartArgs) ->
     {ok, CaCertPath} = application:get_env(?APP_NAME, gui_cacert_path),
     {ok, RestPrefix} = application:get_env(?APP_NAME, onepanel_server_rest_prefix),
 
+    {ok, CaCertPem} = file:read_file(CaCertPath),
+    [{_, CaCertDer, _} | _] = public_key:pem_decode(CaCertPem),
+
     ets:new(store, [named_table, public, set, {read_concurrency, true}]),
     gui_utils:init_n2o_ets_and_envs(GuiPort, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE, ?COWBOY_BRIDGE_MODULE),
 
@@ -71,16 +74,16 @@ start(_StartType, _StartArgs) ->
             ]}
         ]),
 
-    case ranch:start_listener(?HTTPS_LISTENER, HttpsAcceptors, ranch_etls,
+    case cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
         [
             {port, GuiPort},
             {keyfile, KeyPath},
             {certfile, CertPath},
-            {cacertfile, CaCertPath},
+            {cacerts, [CaCertDer]},
             {verify, verify_peer},
             {ciphers, ssl:cipher_suites() -- weak_ciphers()},
             {versions, ['tlsv1.2', 'tlsv1.1']}
-        ], cowboy_protocol, [
+        ], [
             {env, [{dispatch, Dispatch}]},
             {max_keepalive, MaxKeepalive},
             {timeout, Timeout},
