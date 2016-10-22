@@ -54,13 +54,11 @@ start(_StartType, _StartArgs) ->
     {ok, Timeout} = application:get_env(?APP_NAME, socket_timeout),
     {ok, MaxKeepalive} = application:get_env(?APP_NAME, max_keepalive),
     GuiStaticRoot = filename:join(code:priv_dir(?APP_NAME), "gui_static"),
-    {ok, KeyPath} = application:get_env(?APP_NAME, gui_key_path),
-    {ok, CertPath} = application:get_env(?APP_NAME, gui_cert_path),
-    {ok, CaCertPath} = application:get_env(?APP_NAME, gui_cacert_path),
+    {ok, KeyFile} = application:get_env(?APP_NAME, key_file),
+    {ok, CertFile} = application:get_env(?APP_NAME, cert_file),
+    {ok, CaCertsDir} = application:get_env(?APP_NAME, cacerts_dir),
+    {ok, CaCerts} = file_utils:read_files({dir, CaCertsDir}),
     {ok, RestPrefix} = application:get_env(?APP_NAME, onepanel_server_rest_prefix),
-
-    {ok, CaCertPem} = file:read_file(CaCertPath),
-    [{_, CaCertDer, _} | _] = public_key:pem_decode(CaCertPem),
 
     ets:new(store, [named_table, public, set, {read_concurrency, true}]),
     gui_utils:init_n2o_ets_and_envs(GuiPort, ?GUI_ROUTING_MODULE, ?SESSION_LOGIC_MODULE, ?COWBOY_BRIDGE_MODULE),
@@ -74,16 +72,15 @@ start(_StartType, _StartArgs) ->
             ]}
         ]),
 
-    case cowboy:start_https(?HTTPS_LISTENER, HttpsAcceptors,
-        [
+    case ranch:start_listener(?HTTPS_LISTENER, HttpsAcceptors,
+        ranch_etls, [
             {port, GuiPort},
-            {keyfile, KeyPath},
-            {certfile, CertPath},
-            {cacerts, [CaCertDer]},
-            {verify, verify_peer},
-            {ciphers, ssl:cipher_suites() -- weak_ciphers()},
+            {keyfile, KeyFile},
+            {certfile, CertFile},
+            {cacerts, CaCerts},
+            {ciphers, ssl:cipher_suites() -- ssl_utils:weak_ciphers()},
             {versions, ['tlsv1.2', 'tlsv1.1']}
-        ], [
+        ], cowboy_protocol, [
             {env, [{dispatch, Dispatch}]},
             {max_keepalive, MaxKeepalive},
             {timeout, Timeout},
@@ -105,7 +102,7 @@ start(_StartType, _StartArgs) ->
     Result :: term().
 %% ====================================================================
 stop(_State) ->
-    cowboy:stop_listener(?HTTPS_LISTENER),
+    ranch:stop_listener(?HTTPS_LISTENER),
     % Clean up after n2o.
     gui_utils:cleanup_n2o(?SESSION_LOGIC_MODULE),
     ok.
@@ -124,15 +121,6 @@ gui_adjust_headers(Req) ->
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
-
-%% ====================================================================
-%% @doc Returns list of weak ciphers.
-%% @end
--spec weak_ciphers() -> list().
-%% ====================================================================
-weak_ciphers() ->
-    [{dhe_rsa, des_cbc, sha}, {rsa, des_cbc, sha}].
-
 
 %% static_dispatches/2
 %% ====================================================================
