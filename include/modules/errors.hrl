@@ -57,7 +57,7 @@
         ?UNREGISTERED_PROVIDER_ERROR,
         {
             <<"Unregistered provider">>,
-            <<"Please complete registration process in <i>Global Registry</i>.">>
+            <<"Please complete registration process in <i>onezone</i>.">>
         }
     },
     {
