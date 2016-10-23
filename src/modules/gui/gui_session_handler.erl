@@ -23,7 +23,7 @@
 -export([create/0, get_session_logic_module/0, clear_expired_sessions/0]).
 
 % Session cookie id
--define(cookie_name, <<"session_id">>).
+-define(cookie_name, <<"onepanel_session_id">>).
 % Value of cookie when there is no session
 -define(no_session_cookie, <<"no_session">>).
 
