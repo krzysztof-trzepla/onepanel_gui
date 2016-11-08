@@ -70,7 +70,8 @@ body() ->
                     },
                     ceph_storage_panel(),
                     posix_storage_panel(),
-                    s3_storage_panel()
+                    s3_storage_panel(),
+                    swift_storage_panel()
                 ]
             },
             #table{
@@ -108,7 +109,7 @@ storage_type_dropdown() ->
             id = <<"storage_type_dropdown">>,
             class = <<"dropdown-menu dropdown-inverse">>,
             style = <<"overflow-y: auto; max-height: 20em;">>,
-            body = storage_type_list(<<"Amazon S3">>, [<<"Posix">>, <<"Ceph">>, <<"Amazon S3">>])
+            body = storage_type_list(<<"Amazon S3">>, [<<"Swift">>, <<"Posix">>, <<"Ceph">>, <<"Amazon S3">>])
         }
     ].
 
@@ -142,7 +143,8 @@ ceph_storage_panel() ->
         actions = gui_jq:form_submit_action(<<"ceph_submit">>,
             ceph_submit, [<<"ceph_storage_name">>, <<"ceph_username">>,
                 <<"ceph_key">>, <<"ceph_mon_host">>,
-                <<"ceph_cluster_name">>, <<"ceph_pool_name">>]),
+                <<"ceph_cluster_name">>, <<"ceph_pool_name">>,
+                <<"ceph_timeout">>]),
         body = [
             #textbox{
                 id = <<"ceph_storage_name">>,
@@ -174,6 +176,11 @@ ceph_storage_panel() ->
                 style = <<"width: 30em; display: block">>,
                 placeholder = <<"Pool name">>
             },
+            #textbox{
+                id = <<"ceph_timeout">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Timeout [ms] (optional)">>
+            },
             #button{
                 id = <<"ceph_submit">>,
                 class = <<"btn btn-inverse">>,
@@ -189,7 +196,8 @@ posix_storage_panel() ->
         id = <<"dio_storage">>,
         style = <<"margin-top: 0.75em; display: none;">>,
         actions = gui_jq:form_submit_action(<<"dio_submit">>,
-            dio_submit, [<<"dio_storage_name">>, <<"dio_mount_point">>]),
+            dio_submit, [<<"dio_storage_name">>, <<"dio_mount_point">>,
+                <<"dio_timeout">>]),
         body = [
             #textbox{
                 id = <<"dio_storage_name">>,
@@ -200,6 +208,11 @@ posix_storage_panel() ->
                 id = <<"dio_mount_point">>,
                 style = <<"width: 30em; display: block">>,
                 placeholder = <<"Mount point">>
+            },
+            #textbox{
+                id = <<"dio_timeout">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Timeout [ms] (optional)">>
             },
             #button{
                 id = <<"dio_submit">>,
@@ -218,7 +231,7 @@ s3_storage_panel() ->
         actions = gui_jq:form_submit_action(<<"s3_submit">>,
             s3_submit, [<<"s3_storage_name">>, <<"s3_access_key">>,
                 <<"s3_secret_key">>, <<"s3_hostname">>, <<"iam_hostname">>,
-                <<"s3_bucket_name">>]),
+                <<"s3_bucket_name">>, <<"s3_block_size">>, <<"s3_timeout">>]),
         body = [
             #textbox{
                 id = <<"s3_storage_name">>,
@@ -252,6 +265,16 @@ s3_storage_panel() ->
                 style = <<"width: 30em; display: block">>,
                 placeholder = <<"Bucket name">>
             },
+            #textbox{
+                id = <<"s3_block_size">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Block size [bytes] (optional)">>
+            },
+            #textbox{
+                id = <<"s3_timeout">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Timeout [ms] (optional)">>
+            },
             #button{
                 id = <<"s3_submit">>,
                 class = <<"btn btn-inverse">>,
@@ -260,6 +283,73 @@ s3_storage_panel() ->
             }
         ]
     }.
+
+
+swift_storage_panel() ->
+    #panel{
+        id = <<"swift_storage">>,
+        style = <<"margin-top: 0.75em; display: none;">>,
+        actions = gui_jq:form_submit_action(<<"swift_submit">>,
+            swift_submit, [<<"swift_auth_url">>, <<"swift_username">>,
+                <<"swift_password">>, <<"swift_container_name">>,
+                <<"swift_tenant_name">>, <<"swift_block_size">>,
+                <<"swift_timeout">>]),
+        body = [
+            #textbox{
+                id = <<"swift_storage_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Storage name">>
+            },
+            #textbox{
+                id = <<"swift_username">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Admin username">>
+            },
+            #password{
+                id = <<"swift_password">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Admin password">>
+            },
+            #textbox{
+                id = <<"swift_auth_url">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Auth URL">>
+            },
+            #textbox{
+                id = <<"swift_container_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Container name">>
+            },
+            #textbox{
+                id = <<"swift_tenant_name">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Tenant name">>
+            },
+            #textbox{
+                id = <<"swift_block_size">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Block size [bytes] (optional)">>
+            },
+            #textbox{
+                id = <<"swift_timeout">>,
+                style = <<"width: 30em; display: block">>,
+                placeholder = <<"Timeout [ms] (optional)">>
+            },
+            #button{
+                id = <<"swift_submit">>,
+                class = <<"btn btn-inverse">>,
+                style = <<"width: 10em;">>,
+                body = <<"Add">>
+            }
+        ]
+    }.
+
+
+get_opt_param(Name, DisplayName, Params) ->
+    case maps:find(Name, Params) of
+        {ok, Value} -> {DisplayName, Value};
+        error -> {DisplayName, <<"default">>}
+    end.
 
 
 storage_table(Storages) ->
@@ -273,15 +363,25 @@ storage_table(Storages) ->
     },
     Rows = lists:map(fun
         ({Name, #{<<"monitorHostname">> := MonHost, <<"clusterName">> := ClusterName,
-            <<"poolName">> := PoolName}}) ->
+            <<"poolName">> := PoolName} = Params}) ->
             storage_table_row(Name, <<"Ceph">>, [{<<"Monitor host">>, MonHost},
-                {<<"Cluster name">>, ClusterName}, {<<"Pool name">>, PoolName}]);
-        ({Name, #{<<"mountPoint">> := Path}}) ->
-            storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path}]);
+                {<<"Cluster name">>, ClusterName}, {<<"Pool name">>, PoolName},
+                get_opt_param(<<"timeout">>, <<"Timeout [ms]">>, Params)]);
+        ({Name, #{<<"mountPoint">> := Path} = Params}) ->
+            storage_table_row(Name, <<"Posix">>, [{<<"Mount point">>, Path},
+                get_opt_param(<<"timeout">>, <<"Timeout [ms]">>, Params)]);
         ({Name, #{<<"s3Hostname">> := Hostname, <<"iamHostname">> := IamHost,
-            <<"bucketName">> := BucketName}}) ->
+            <<"bucketName">> := BucketName} = Params}) ->
             storage_table_row(Name, <<"Amazon S3">>, [{<<"Hostname">>, Hostname},
-                {<<"Bucket name">>, BucketName}, {<<"IAM hostname">>, IamHost}])
+                {<<"Bucket name">>, BucketName}, {<<"IAM hostname">>, IamHost},
+                get_opt_param(<<"timeout">>, <<"Timeout [ms]">>, Params),
+                get_opt_param(<<"blockSize">>, <<"Block size [bytes]">>, Params)]);
+        ({Name, #{<<"authUrl">> := AuthUrl, <<"containerName">> := ContainerName,
+            <<"tenantName">> := TenantName} = Params}) ->
+            storage_table_row(Name, <<"Swift">>, [{<<"Auth URL">>, AuthUrl},
+                {<<"Container name">>, ContainerName}, {<<"Tenant name">>, TenantName},
+                get_opt_param(<<"timeout">>, <<"Timeout [ms]">>, Params),
+                get_opt_param(<<"blockSize">>, <<"Block size [bytes]">>, Params)])
     end, Storages),
     [Header | Rows].
 
@@ -323,13 +423,23 @@ clear_textboxes() ->
         gui_jq:set_value(Id, <<"''">>)
     end, [<<"ceph_storage_name">>, <<"ceph_username">>, <<"ceph_key">>,
         <<"ceph_mon_host">>, <<"ceph_cluster_name">>, <<"ceph_pool_name">>,
-        <<"dio_storage_name">>, <<"dio_mount_point">>, <<"s3_storage_name">>,
-        <<"s3_access_key">>, <<"s3_secret_key">>, <<"s3_hostname">>,
-        <<"iam_hostname">>, <<"s3_bucket_name">>]).
+        <<"ceph_timeout">>, <<"dio_storage_name">>, <<"dio_mount_point">>,
+        <<"dio_timeout">>, <<"s3_storage_name">>, <<"s3_access_key">>,
+        <<"s3_secret_key">>, <<"s3_hostname">>, <<"iam_hostname">>,
+        <<"s3_bucket_name">>, <<"s3_bucket_size">>, <<"s3_timeout">>,
+        <<"swift_storage_name">>, <<"swift_auth_url">>, <<"swift_container_name">>,
+        <<"swift_tenant_name">>, <<"swift_block_size">>, <<"swift_timeout">>]).
 
 
 strip(Text) ->
     list_to_binary(string:strip(binary_to_list(Text))).
+
+prepare_opt_args([], Acc) ->
+    Acc;
+prepare_opt_args([{_Name, <<>>} | Args], Acc) ->
+    prepare_opt_args(Args, Acc);
+prepare_opt_args([{Name, Value} | Args], Acc) ->
+    prepare_opt_args(Args, [{Name, erlang:binary_to_integer(Value)} | Acc]).
 
 %% ====================================================================
 %% Events handling
@@ -357,57 +467,71 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 gui_jq:show(<<"s3_storage">>),
                 gui_jq:hide(<<"dio_storage">>),
                 gui_jq:hide(<<"ceph_storage">>),
+                gui_jq:hide(<<"swift_storage">>),
                 clear_textboxes(),
                 gui_jq:focus(<<"s3_storage_name">>),
-                gui_jq:bind_enter_to_submit_button(<<"s3_bucket_name">>, <<"s3_submit">>),
+                gui_jq:bind_enter_to_submit_button(<<"s3_timeout">>, <<"s3_submit">>),
                 State#{storage_type => SType};
 
             {set_storage_type, <<"Ceph">> = SType} ->
                 gui_jq:show(<<"ceph_storage">>),
                 gui_jq:hide(<<"dio_storage">>),
                 gui_jq:hide(<<"s3_storage">>),
+                gui_jq:hide(<<"swift_storage">>),
                 clear_textboxes(),
                 gui_jq:focus(<<"ceph_storage_name">>),
-                gui_jq:bind_enter_to_submit_button(<<"ceph_pool_name">>, <<"ceph_submit">>),
+                gui_jq:bind_enter_to_submit_button(<<"ceph_timeout">>, <<"ceph_submit">>),
                 State#{storage_type => SType};
 
             {set_storage_type, <<"Posix">> = SType} ->
                 gui_jq:show(<<"dio_storage">>),
                 gui_jq:hide(<<"ceph_storage">>),
                 gui_jq:hide(<<"s3_storage">>),
+                gui_jq:hide(<<"swift_storage">>),
                 clear_textboxes(),
                 gui_jq:focus(<<"dio_storage_name">>),
-                gui_jq:bind_enter_to_submit_button(<<"dio_mount_point">>, <<"dio_submit">>),
+                gui_jq:bind_enter_to_submit_button(<<"dio_timeout">>, <<"dio_submit">>),
                 State#{storage_type => SType};
 
-            {ceph_submit, <<>>, _, _, _, _, _} ->
+            {set_storage_type, <<"Swift">> = SType} ->
+                gui_jq:show(<<"swift_storage">>),
+                gui_jq:hide(<<"dio_storage">>),
+                gui_jq:hide(<<"ceph_storage">>),
+                gui_jq:hide(<<"s3_storage">>),
+                clear_textboxes(),
+                gui_jq:focus(<<"swift_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"swift_timeout">>, <<"swift_submit">>),
+                State#{storage_type => SType};
+
+            {ceph_submit, <<>>, _, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide Ceph admin username.">>),
                 State;
 
-            {ceph_submit, _, <<>>, _, _, _, _} ->
+            {ceph_submit, _, <<>>, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide Ceph admin key.">>),
                 State;
 
-            {ceph_submit, _, _, <<>>, _, _, _} ->
+            {ceph_submit, _, _, <<>>, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
                 State;
 
-            {ceph_submit, _, _, _, <<>>, _, _} ->
+            {ceph_submit, _, _, _, <<>>, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide monitor host.">>),
                 State;
 
-            {ceph_submit, _, _, _, _, <<>>, _} ->
+            {ceph_submit, _, _, _, _, <<>>, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide cluster name.">>),
                 State;
 
-            {ceph_submit, _, _, _, _, _, <<>>} ->
+            {ceph_submit, _, _, _, _, _, <<>>, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide pool name.">>),
                 State;
 
-            {ceph_submit, Username, Key, StorageName, MonHost, ClusterName, PoolName} ->
+            {ceph_submit, Username, Key, StorageName, MonHost, ClusterName, PoolName, Timeout} ->
+                OptArgs = prepare_opt_args([{timeout, Timeout}], []),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"ceph">>},
                     {monitorHostname, MonHost}, {clusterName, ClusterName},
-                    {poolName, PoolName}, {username, Username}, {key, Key}]}]) of
+                    {poolName, PoolName}, {username, Username}, {key, Key} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
@@ -418,16 +542,18 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 end,
                 State;
 
-            {dio_submit, <<>>, _} ->
+            {dio_submit, <<>>, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
                 State;
 
-            {dio_submit, _, <<>>} ->
+            {dio_submit, _, <<>>, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide mount point.">>),
                 State;
 
-            {dio_submit, StorageName, MountPoint} ->
-                case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"posix">>}, {mountPoint, MountPoint}]}]) of
+            {dio_submit, StorageName, MountPoint, Timeout} ->
+                OptArgs = prepare_opt_args([{timeout, Timeout}], []),
+                case onepanel_gui_logic:add_storage([{StorageName,
+                    [{type, <<"posix">>}, {mountPoint, MountPoint} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
@@ -438,38 +564,78 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 end,
                 State;
 
-            {s3_submit, <<>>, _, _, _, _, _} ->
+            {s3_submit, <<>>, _, _, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
                 State;
 
-            {s3_submit, _, <<>>, _, _, _, _} ->
+            {s3_submit, _, <<>>, _, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide access key.">>),
                 State;
 
-            {s3_submit, _, _, <<>>, _, _, _} ->
+            {s3_submit, _, _, <<>>, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide secret key.">>),
                 State;
 
-            {s3_submit, _, _, _, <<>>, _, _} ->
+            {s3_submit, _, _, _, <<>>, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide hostname.">>),
                 State;
 
-            {s3_submit, _, _, _, _, <<>>, _} ->
+            {s3_submit, _, _, _, _, <<>>, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide IAM hostname.">>),
                 State;
 
-            {s3_submit, _, _, _, _, _, <<>>} ->
+            {s3_submit, _, _, _, _, _, <<>>, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide bucket name.">>),
                 State;
 
-            {s3_submit, StorageName, AccessKey, SecretKey, Hostname, IamHostname, BucketName} ->
+            {s3_submit, StorageName, AccessKey, SecretKey, Hostname, IamHostname, BucketName, BlockSize, Timeout} ->
+                OptArgs = prepare_opt_args([{timeout, Timeout}, {blockSize, BlockSize}], []),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"s3">>}, {s3Hostname, Hostname},
                     {iamHostname, IamHostname}, {bucketName, BucketName}, {accessKey, AccessKey},
-                    {secretKey, SecretKey}]}]) of
+                    {secretKey, SecretKey} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         clear_textboxes(),
                         gui_jq:focus(<<"s3_storage_name">>),
+                        self() ! render_storages_table;
+                    {error, _} ->
+                        onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
+                end,
+                State;
+
+            {swift_submit, <<>>, _, _, _, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide storage name.">>),
+                State;
+
+            {swift_submit, _, <<>>, _, _, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide admin username.">>),
+                State;
+
+            {swift_submit, _, _, <<>>, _, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide admin password.">>),
+                State;
+
+            {swift_submit, _, _, _, <<>>, _, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide auth URL.">>),
+                State;
+
+            {swift_submit, _, _, _, _, <<>>, _, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide container name.">>),
+                State;
+
+            {swift_submit, _, _, _, _, _, <<>>, _, _} ->
+                onepanel_gui_utils:message(error, <<"Please provide tenant name.">>),
+                State;
+
+            {swift_submit, StorageName, Username, Password, AuthUrl, ContainerName, TenantName, BlockSize, Timeout} ->
+                OptArgs = prepare_opt_args([{timeout, Timeout}, {blockSize, BlockSize}], []),
+                case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"swift">>}, {username, Username},
+                    {password, Password}, {authUrl, AuthUrl}, {containerName, ContainerName},
+                    {tenantName, TenantName} | OptArgs]}]) of
+                    ok ->
+                        onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
+                        clear_textboxes(),
+                        gui_jq:focus(<<"swift_storage_name">>),
                         self() ! render_storages_table;
                     {error, _} ->
                         onepanel_gui_utils:message(error, <<"There has been an error while adding storage. Please try again later.">>)
@@ -517,14 +683,16 @@ event(ceph_submit) ->
     MonHost = gui_ctx:postback_param(<<"ceph_mon_host">>),
     ClusterName = gui_ctx:postback_param(<<"ceph_cluster_name">>),
     PoolName = gui_ctx:postback_param(<<"ceph_pool_name">>),
+    Timeout = gui_ctx:postback_param(<<"ceph_timeout">>),
     get(comet) ! {ceph_submit, strip(Username), strip(Key), strip(StorageName),
-        strip(MonHost), strip(ClusterName), strip(PoolName)};
+        strip(MonHost), strip(ClusterName), strip(PoolName), strip(Timeout)};
 
 event(dio_submit) ->
     gui_jq:show(<<"main_spinner">>),
     StorageName = gui_ctx:postback_param(<<"dio_storage_name">>),
     MountPoint = gui_ctx:postback_param(<<"dio_mount_point">>),
-    get(comet) ! {dio_submit, strip(StorageName), strip(MountPoint)};
+    Timeout = gui_ctx:postback_param(<<"dio_timeout">>),
+    get(comet) ! {dio_submit, strip(StorageName), strip(MountPoint), strip(Timeout)};
 
 event(s3_submit) ->
     gui_jq:show(<<"main_spinner">>),
@@ -534,8 +702,25 @@ event(s3_submit) ->
     Hostname = gui_ctx:postback_param(<<"s3_hostname">>),
     IamHostname = gui_ctx:postback_param(<<"iam_hostname">>),
     BucketName = gui_ctx:postback_param(<<"s3_bucket_name">>),
+    BlockSize = gui_ctx:postback_param(<<"s3_block_size">>),
+    Timeout = gui_ctx:postback_param(<<"s3_timeout">>),
     get(comet) ! {s3_submit, strip(StorageName), strip(AccessKey),
-        strip(SecretKey), strip(Hostname), strip(IamHostname), strip(BucketName)};
+        strip(SecretKey), strip(Hostname), strip(IamHostname), strip(BucketName),
+        strip(BlockSize), strip(Timeout)};
+
+event(swift_submit) ->
+    gui_jq:show(<<"main_spinner">>),
+    StorageName = gui_ctx:postback_param(<<"swift_storage_name">>),
+    Username = gui_ctx:postback_param(<<"swift_username">>),
+    Password = gui_ctx:postback_param(<<"swift_password">>),
+    AuthUrl = gui_ctx:postback_param(<<"swift_auth_url">>),
+    ContainerName = gui_ctx:postback_param(<<"swift_container_name">>),
+    TenantName = gui_ctx:postback_param(<<"swift_tenant_name">>),
+    BlockSize = gui_ctx:postback_param(<<"swift_block_size">>),
+    Timeout = gui_ctx:postback_param(<<"swift_timeout">>),
+    get(comet) ! {swift_submit, strip(StorageName), strip(Username), strip(Password),
+        strip(AuthUrl), strip(ContainerName), strip(TenantName), strip(BlockSize),
+        strip(Timeout)};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
