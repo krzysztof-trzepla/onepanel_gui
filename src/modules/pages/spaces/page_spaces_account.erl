@@ -30,7 +30,14 @@ main() ->
                 _ ->
                     case gui_ctx:get(?CURRENT_REGISTRATION_PAGE) of
                         undefined ->
-                            #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]};
+                            case onepanel_gui_logic:get_provider_details() of
+                                {ok, _} ->
+                                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, title()}, {body, body()}, {custom, custom()}]};
+                                _ ->
+                                    gui_ctx:put(?CURRENT_REGISTRATION_PAGE, ?PAGE_REGISTRATION_SUMMARY),
+                                    gui_jq:redirect(?PAGE_REGISTRATION_SUMMARY),
+                                    #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
+                            end;
                         Page ->
                             gui_jq:redirect(Page),
                             #dtl{file = "bare", app = ?APP_NAME, bindings = [{title, <<"">>}, {body, <<"">>}, {custom, <<"">>}]}
