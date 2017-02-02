@@ -189,6 +189,14 @@ ceph_storage_panel() ->
                 postback = {insecure_toggled, ceph},
                 body = <<"Insecure">>
             },
+            #flatui_checkbox{
+                label_id = <<"readonly_storage_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = {readonly_toggled, ceph},
+                body = <<"Readonly">>
+            },
             #button{
                 id = <<"ceph_submit">>,
                 class = <<"btn btn-inverse">>,
@@ -227,6 +235,14 @@ posix_storage_panel() ->
                 class = <<"btn btn-inverse">>,
                 style = <<"width: 10em;">>,
                 body = <<"Add">>
+            },
+            #flatui_checkbox{
+                label_id = <<"readonly_storage_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = {readonly_toggled, posix},
+                body = <<"Readonly">>
             }
         ]
     }.
@@ -284,6 +300,14 @@ s3_storage_panel() ->
                 delegate = ?MODULE,
                 postback = {insecure_toggled, s3},
                 body = <<"Insecure">>
+            },
+            #flatui_checkbox{
+                label_id = <<"readonly_storage_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = {readonly_toggled, s3},
+                body = <<"Readonly">>
             },
             #button{
                 id = <<"s3_submit">>,
@@ -352,6 +376,14 @@ swift_storage_panel() ->
                 delegate = ?MODULE,
                 postback = {insecure_toggled, swift},
                 body = <<"Insecure">>
+            },
+            #flatui_checkbox{
+                label_id = <<"readonly_storage_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = {readonly_toggled, swift},
+                body = <<"Readonly">>
             },
             #button{
                 id = <<"swift_submit">>,
@@ -532,6 +564,10 @@ comet_loop(#{storage_type := StorageType} = State) ->
             {insecure_toggled, Storage} ->
                 Insecure = maps:get(Storage, State, false),
                 maps:put(Storage, not Insecure, State);
+
+            {readonly_toggled, Storage} ->
+                Readonly = maps:get(Storage, State, false),
+                maps:put(Storage, not Readonly, State);
 
             {ceph_submit, <<>>, _, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide admin username.">>),
@@ -750,6 +786,9 @@ event(swift_submit) ->
 
 event({insecure_toggled, Storage}) ->
     get(comet) ! {insecure_toggled, Storage};
+
+event({readonly_toggled, Storage}) ->
+    get(comet) ! {readonly_toggled, Storage};
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
