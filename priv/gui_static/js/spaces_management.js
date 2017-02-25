@@ -27,11 +27,21 @@ function space_size_panel() {
         '</div>'
 }
 
+function space_mount_in_root_panel() {
+    return '<div id="space_mount_in_root_div" style="width: 100%;">' +
+        '<label id="space_mount_in_root_checkbox" class="checkbox">' +
+        '<input type="checkbox" data-toggle="checkbox">Mount in storage root' +
+        '</label>' +
+        '</div>'
+}
+
 // Initializes FlatUI radio buttons.
-function initialize_radio_buttons() {
+function initialize() {
     $('[data-toggle="radio"]').each(function () {
-        var $radio = $(this);
-        $radio.radio();
+        $(this).radio();
+    });
+    $('[data-toggle="checkbox"]').each(function () {
+        $(this).checkbox();
     });
 }
 
@@ -39,11 +49,12 @@ function initialize_radio_buttons() {
 function storage_support_form() {
     $('#storage_list').after(
         '<div id="storage_form">' +
+        space_mount_in_root_panel() +
         '<input id="space_token" type="text" style="width: 100%;" placeholder="Space token">' +
         space_size_panel() +
         '</div>'
     );
-    initialize_radio_buttons();
+    initialize();
     $('#space_token').focus();
 }
 
@@ -51,19 +62,20 @@ function storage_support_form() {
 function storage_create_form() {
     $('#storage_list').after(
         '<div id="storage_form">' +
+        space_mount_in_root_panel() +
         '<input id="space_name" type="text" style="width: 100%;" placeholder="Space name">' +
         '<input id="space_token" type="text" style="width: 100%;" placeholder="Space token">' +
         space_size_panel() +
         '</div>'
     );
-    initialize_radio_buttons();
+    initialize();
     $('#space_name').focus();
 }
 
 // Validates provided parameter.
 function check_params(storage_id, token, size) {
     var message = $('#space_alert');
-    if(storage_id == undefined) {
+    if (storage_id == undefined) {
         message.html('Please configure storage first.');
         message.fadeIn(300);
         return false;
@@ -101,6 +113,7 @@ function multiply_space_size(size) {
 function create_space_check() {
     var message = $('#space_alert');
     var storage_id = $('#storage_id').val();
+    var mountInRoot = $('#space_mount_in_root_checkbox').hasClass('checked');
     var name = $.trim($('#space_name').val());
     var token = $.trim($('#space_token').val());
     var size = $.trim($('#space_size').val());
@@ -109,23 +122,24 @@ function create_space_check() {
         message.fadeIn(300);
         return false;
     }
-    if (!check_params(storage_id ,token, size)) {
+    if (!check_params(storage_id, token, size)) {
         return false;
     }
     size = multiply_space_size(size);
-    create_space([storage_id, name, token, size]);
+    create_space([storage_id, mountInRoot, name, token, size]);
     return true;
 }
 
 // Validates space support parameters.
 function support_space_check() {
     var storage_id = $('#storage_id').val();
+    var mountInRoot = $('#space_mount_in_root_checkbox').hasClass('checked');
     var token = $.trim($('#space_token').val());
     var size = $.trim($('#space_size').val());
     if (!check_params(storage_id, token, size)) {
         return false;
     }
     size = multiply_space_size(size);
-    support_space([storage_id, token, size]);
+    support_space([storage_id, mountInRoot, token, size]);
     return true;
 }

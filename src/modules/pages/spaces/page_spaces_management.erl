@@ -228,12 +228,13 @@ comet_loop({error, Reason}) ->
 comet_loop(#{counter := Counter, spaces_details := SpacesDetails} = State) ->
     NewState = try
         receive
-            {create_space, StorageId, Name, Token, Size} ->
+            {create_space, StorageId, MountInRoot, Name, Token, Size} ->
                 NextState =
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
                         {ok, SpaceId} = onepanel_gui_logic:support_space([
-                            {name, Name}, {token, Token}, {size, Size}, {storageId, StorageId}
+                            {name, Name}, {token, Token}, {size, Size},
+                            {mountInRoot, MountInRoot}, {storageId, StorageId}
                         ]),
                         {ok, SpaceDetails} = onepanel_gui_logic:get_space_details(SpaceId),
                         add_space_row(RowId, SpaceDetails),
@@ -249,12 +250,13 @@ comet_loop(#{counter := Counter, spaces_details := SpacesDetails} = State) ->
                 gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"">>),
                 NextState;
 
-            {support_space, StorageId, Token, Size} ->
+            {support_space, StorageId, MountInRoot, Token, Size} ->
                 NextState =
                     try
                         RowId = <<"space_", (integer_to_binary(Counter + 1))/binary>>,
                         {ok, SpaceId} = onepanel_gui_logic:support_space([
-                            {token, Token}, {size, Size}, {storageId, StorageId}
+                            {token, Token}, {size, Size}, {storageId, StorageId},
+                            {mountInRoot, MountInRoot}
                         ]),
                         {ok, SpaceDetails} = onepanel_gui_logic:get_space_details(SpaceId),
                         add_space_row(RowId, SpaceDetails),
@@ -391,14 +393,14 @@ event(terminate) ->
 
 
 api_event("create_space", Args, _) ->
-    [StorageId, Name, Token, Size] = mochijson2:decode(Args),
-    get(comet) ! {create_space, StorageId, Name, Token, Size},
+    [StorageId, MountInRoot, Name, Token, Size] = mochijson2:decode(Args),
+    get(comet) ! {create_space, StorageId, MountInRoot, Name, Token, Size},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"create_space_button">>, <<"disabled">>, <<"disabled">>);
 
 api_event("support_space", Args, _) ->
-    [StorageId, Token, Size] = mochijson2:decode(Args),
-    get(comet) ! {support_space, StorageId, Token, Size},
+    [StorageId, MountInRoot, Token, Size] = mochijson2:decode(Args),
+    get(comet) ! {support_space, StorageId, MountInRoot, Token, Size},
     gui_jq:show(<<"main_spinner">>),
     gui_jq:prop(<<"support_space_button">>, <<"disabled">>, <<"disabled">>);
 

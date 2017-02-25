@@ -29,8 +29,11 @@ title() ->
 
 body() ->
     case gui_ctx:user_logged_in() of
-        true -> gui_jq:redirect(?PAGE_ROOT);
-        false -> render_login_page()
+        true ->
+            gui_jq:redirect(?PAGE_ROOT),
+            [];
+        false ->
+            render_login_page()
     end.
 
 

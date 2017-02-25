@@ -98,7 +98,7 @@ storage_type_dropdown() ->
                     id = <<"storage_type_label">>,
                     style = <<"padding-right: 1em; min-width: 10em;">>,
                     class = <<"filter-option pull-left">>,
-                    body = <<"Storage type: <b>S3</b>">>
+                    body = <<"Storage type: <b>Ceph</b>">>
                 },
                 #span{
                     class = <<"caret pull-right">>
@@ -109,7 +109,7 @@ storage_type_dropdown() ->
             id = <<"storage_type_dropdown">>,
             class = <<"dropdown-menu dropdown-inverse">>,
             style = <<"overflow-y: auto; max-height: 20em;">>,
-            body = storage_type_list(<<"S3">>, [<<"Swift">>, <<"Posix">>, <<"Ceph">>, <<"S3">>])
+            body = storage_type_list(<<"Ceph">>, [<<"Swift">>, <<"S3">>, <<"Posix">>, <<"Ceph">>])
         }
     ].
 
@@ -139,7 +139,7 @@ storage_type_list(StorageType, StorageTypes) ->
 ceph_storage_panel() ->
     #panel{
         id = <<"ceph_storage">>,
-        style = <<"margin-top: 0.75em; display: none;">>,
+        style = <<"margin-top: 0.75em;">>,
         actions = gui_jq:form_submit_action(<<"ceph_submit">>,
             ceph_submit, [<<"ceph_storage_name">>, <<"ceph_username">>,
                 <<"ceph_key">>, <<"ceph_mon_host">>,
@@ -182,11 +182,19 @@ ceph_storage_panel() ->
                 placeholder = <<"Timeout [ms] (optional)">>
             },
             #flatui_checkbox{
+                label_id = <<"ceph_readonly_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = readonly_toggled,
+                body = <<"Readonly">>
+            },
+            #flatui_checkbox{
                 label_id = <<"ceph_insecure_checkbox">>,
                 label_style = <<"width: 20px;">>,
                 label_class = <<"checkbox">>,
                 delegate = ?MODULE,
-                postback = {insecure_toggled, ceph},
+                postback = insecure_toggled,
                 body = <<"Insecure">>
             },
             #button{
@@ -222,6 +230,14 @@ posix_storage_panel() ->
                 style = <<"width: 30em; display: block">>,
                 placeholder = <<"Timeout [ms] (optional)">>
             },
+            #flatui_checkbox{
+                label_id = <<"posix_readonly_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = readonly_toggled,
+                body = <<"Readonly">>
+            },
             #button{
                 id = <<"posix_submit">>,
                 class = <<"btn btn-inverse">>,
@@ -235,7 +251,7 @@ posix_storage_panel() ->
 s3_storage_panel() ->
     #panel{
         id = <<"s3_storage">>,
-        style = <<"margin-top: 0.75em;">>,
+        style = <<"margin-top: 0.75em; display: none;">>,
         actions = gui_jq:form_submit_action(<<"s3_submit">>,
             s3_submit, [<<"s3_storage_name">>, <<"s3_access_key">>,
                 <<"s3_secret_key">>, <<"s3_hostname">>, <<"s3_bucket_name">>,
@@ -278,11 +294,19 @@ s3_storage_panel() ->
                 placeholder = <<"Timeout [ms] (optional)">>
             },
             #flatui_checkbox{
+                label_id = <<"s3_readonly_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = readonly_toggled,
+                body = <<"Readonly">>
+            },
+            #flatui_checkbox{
                 label_id = <<"s3_insecure_checkbox">>,
                 label_style = <<"width: 20px;">>,
                 label_class = <<"checkbox">>,
                 delegate = ?MODULE,
-                postback = {insecure_toggled, s3},
+                postback = insecure_toggled,
                 body = <<"Insecure">>
             },
             #button{
@@ -346,11 +370,19 @@ swift_storage_panel() ->
                 placeholder = <<"Timeout [ms] (optional)">>
             },
             #flatui_checkbox{
+                label_id = <<"swift_readonly_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = readonly_toggled,
+                body = <<"Readonly">>
+            },
+            #flatui_checkbox{
                 label_id = <<"swift_insecure_checkbox">>,
                 label_style = <<"width: 20px;">>,
                 label_class = <<"checkbox">>,
                 delegate = ?MODULE,
-                postback = {insecure_toggled, swift},
+                postback = insecure_toggled,
                 body = <<"Insecure">>
             },
             #button{
@@ -439,6 +471,10 @@ reset_panel() ->
     lists:foreach(fun(Id) ->
         gui_jq:remove_class(Id, <<"checked">>)
     end, [
+        <<"ceph_readonly_checkbox">>,
+        <<"posix_readonly_checkbox">>,
+        <<"s3_readonly_checkbox">>,
+        <<"swift_readonly_checkbox">>,
         <<"ceph_insecure_checkbox">>,
         <<"s3_insecure_checkbox">>,
         <<"swift_insecure_checkbox">>
@@ -482,9 +518,9 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 {ok, Storages} = onepanel_gui_logic:get_storages(),
                 gui_jq:update(<<"storage_paths_table">>, storage_table(Storages)),
                 gui_jq:fade_in(<<"storage_paths_table">>, 500),
-                gui_jq:focus(<<"s3_storage_name">>),
-                gui_jq:bind_enter_to_submit_button(<<"s3_bucket_name">>, <<"s3_submit">>),
-                State;
+                gui_jq:focus(<<"ceph_storage_name">>),
+                gui_jq:bind_enter_to_submit_button(<<"ceph_timeout">>, <<"ceph_submit">>),
+                #{storage_type => StorageType};
 
             {set_storage_type, StorageType} ->
                 State;
@@ -529,9 +565,13 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 gui_jq:bind_enter_to_submit_button(<<"swift_timeout">>, <<"swift_submit">>),
                 #{storage_type => SType};
 
-            {insecure_toggled, Storage} ->
-                Insecure = maps:get(Storage, State, false),
-                maps:put(Storage, not Insecure, State);
+            insecure_toggled ->
+                Insecure = maps:get(insecure, State, false),
+                maps:put(insecure, not Insecure, State);
+
+            readonly_toggled ->
+                Readonly = maps:get(readonly, State, false),
+                maps:put(readonly, not Readonly, State);
 
             {ceph_submit, <<>>, _, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide admin username.">>),
@@ -559,10 +599,12 @@ comet_loop(#{storage_type := StorageType} = State) ->
 
             {ceph_submit, Username, Key, StorageName, MonHost, ClusterName, PoolName, Timeout} ->
                 OptArgs = prepare_opt_args([{timeout, Timeout}], []),
+                Insecure = maps:get(insecure, State, false),
+                Readonly = maps:get(readonly, State, false),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"ceph">>},
                     {monitorHostname, MonHost}, {clusterName, ClusterName},
                     {poolName, PoolName}, {username, Username}, {key, Key},
-                    {insecure, maps:get(ceph, State, false)} | OptArgs]}]) of
+                    {insecure, Insecure}, {readonly, Readonly} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         reset_panel(),
@@ -583,8 +625,9 @@ comet_loop(#{storage_type := StorageType} = State) ->
 
             {posix_submit, StorageName, MountPoint, Timeout} ->
                 OptArgs = prepare_opt_args([{timeout, Timeout}], []),
-                case onepanel_gui_logic:add_storage([{StorageName,
-                    [{type, <<"posix">>}, {mountPoint, MountPoint} | OptArgs]}]) of
+                Readonly = maps:get(readonly, State, false),
+                case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"posix">>},
+                    {mountPoint, MountPoint}, {readonly, Readonly} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         reset_panel(),
@@ -617,9 +660,11 @@ comet_loop(#{storage_type := StorageType} = State) ->
 
             {s3_submit, StorageName, AccessKey, SecretKey, Hostname, BucketName, BlockSize, Timeout} ->
                 OptArgs = prepare_opt_args([{timeout, Timeout}, {blockSize, BlockSize}], []),
+                Insecure = maps:get(insecure, State, false),
+                Readonly = maps:get(readonly, State, false),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"s3">>},
                     {hostname, Hostname}, {bucketName, BucketName}, {accessKey, AccessKey},
-                    {secretKey, SecretKey}, {insecure, maps:get(s3, State, false)} | OptArgs]}]) of
+                    {secretKey, SecretKey}, {insecure, Insecure}, {readonly, Readonly} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         reset_panel(),
@@ -656,9 +701,11 @@ comet_loop(#{storage_type := StorageType} = State) ->
 
             {swift_submit, StorageName, Username, Password, AuthUrl, ContainerName, TenantName, BlockSize, Timeout} ->
                 OptArgs = prepare_opt_args([{timeout, Timeout}, {blockSize, BlockSize}], []),
+                Insecure = maps:get(insecure, State, false),
+                Readonly = maps:get(readonly, State, false),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"swift">>}, {username, Username},
                     {password, Password}, {authUrl, AuthUrl}, {containerName, ContainerName},
-                    {tenantName, TenantName}, {insecure, maps:get(swift, State, false)} | OptArgs]}]) of
+                    {tenantName, TenantName}, {insecure, Insecure}, {readonly, Readonly} | OptArgs]}]) of
                     ok ->
                         onepanel_gui_utils:message(success, <<"Storage successfully added.">>),
                         reset_panel(),
@@ -685,7 +732,7 @@ comet_loop(#{storage_type := StorageType} = State) ->
 event(init) ->
     try
         {ok, Pid} = gui_comet:spawn(fun() ->
-            comet_loop(#{storage_type => undefined})
+            comet_loop(#{storage_type => ceph})
         end),
         put(comet, Pid),
         Pid ! render_storages_table
@@ -748,8 +795,11 @@ event(swift_submit) ->
         strip(AuthUrl), strip(ContainerName), strip(TenantName), strip(BlockSize),
         strip(Timeout)};
 
-event({insecure_toggled, Storage}) ->
-    get(comet) ! {insecure_toggled, Storage};
+event(insecure_toggled) ->
+    get(comet) ! insecure_toggled;
+
+event(readonly_toggled) ->
+    get(comet) ! readonly_toggled;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);

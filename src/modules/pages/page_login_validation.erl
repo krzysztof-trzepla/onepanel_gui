@@ -43,7 +43,8 @@ body() ->
                     gui_jq:redirect_from_login();
                 {error, Reason} -> page_error:redirect_with_error(Reason)
             end
-    end.
+    end,
+    [].
 
 
 %% ====================================================================
