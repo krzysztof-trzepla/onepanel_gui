@@ -294,6 +294,14 @@ s3_storage_panel() ->
                 placeholder = <<"Timeout [ms] (optional)">>
             },
             #flatui_checkbox{
+                label_id = <<"s3_sig_v2_checkbox">>,
+                label_style = <<"width: 20px;">>,
+                label_class = <<"checkbox">>,
+                delegate = ?MODULE,
+                postback = sig_v2_toggled,
+                body = <<"Signature version 2">>
+            },
+            #flatui_checkbox{
                 label_id = <<"s3_readonly_checkbox">>,
                 label_style = <<"width: 20px;">>,
                 label_class = <<"checkbox">>,
@@ -473,6 +481,7 @@ reset_panel() ->
     end, [
         <<"ceph_readonly_checkbox">>,
         <<"posix_readonly_checkbox">>,
+        <<"s3_sig_v2_checkbox">>,
         <<"s3_readonly_checkbox">>,
         <<"swift_readonly_checkbox">>,
         <<"ceph_insecure_checkbox">>,
@@ -573,6 +582,10 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 Readonly = maps:get(readonly, State, false),
                 maps:put(readonly, not Readonly, State);
 
+            sig_v2_toggled ->
+                SigV2 = maps:get(sig_v2, State, false),
+                maps:put(sig_v2, not SigV2, State);
+
             {ceph_submit, <<>>, _, _, _, _, _, _} ->
                 onepanel_gui_utils:message(error, <<"Please provide admin username.">>),
                 State;
@@ -659,7 +672,14 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 State;
 
             {s3_submit, StorageName, AccessKey, SecretKey, Hostname, BucketName, BlockSize, Timeout} ->
-                OptArgs = prepare_opt_args([{timeout, Timeout}, {blockSize, BlockSize}], []),
+                SignatureVersion = case maps:get(sig_v2, State, false) of
+                    true -> 2;
+                    false -> 4
+                end,
+                OptArgs = prepare_opt_args([
+                    {blockSize, BlockSize},
+                    {timeout, Timeout}
+                ], [{signatureVersion, SignatureVersion}]),
                 Insecure = maps:get(insecure, State, false),
                 Readonly = maps:get(readonly, State, false),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"s3">>},
@@ -700,7 +720,10 @@ comet_loop(#{storage_type := StorageType} = State) ->
                 State;
 
             {swift_submit, StorageName, Username, Password, AuthUrl, ContainerName, TenantName, BlockSize, Timeout} ->
-                OptArgs = prepare_opt_args([{timeout, Timeout}, {blockSize, BlockSize}], []),
+                OptArgs = prepare_opt_args([
+                    {blockSize, BlockSize},
+                    {timeout, Timeout}
+                ], []),
                 Insecure = maps:get(insecure, State, false),
                 Readonly = maps:get(readonly, State, false),
                 case onepanel_gui_logic:add_storage([{StorageName, [{type, <<"swift">>}, {username, Username},
@@ -800,6 +823,9 @@ event(insecure_toggled) ->
 
 event(readonly_toggled) ->
     get(comet) ! readonly_toggled;
+
+event(sig_v2_toggled) ->
+    get(comet) ! sig_v2_toggled;
 
 event({close_message, MessageId}) ->
     gui_jq:hide(MessageId);
